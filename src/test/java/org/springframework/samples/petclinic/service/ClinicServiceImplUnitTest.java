@@ -176,4 +176,18 @@ class ClinicServiceImplUnitTest {
         assertThat(actualResult).isNull();
     }
 
+    // I added this test as test number 8 because one mutant survived
+    @Test
+    void findPetTypeById_whenPetTypeExists_shouldReturnThePetType() {
+
+        PetType existingPetType = new PetType();
+        when(petTypeRepository.findById(1)).thenReturn(existingPetType);
+
+        PetType actualResult = clinicService.findPetTypeById(1);
+
+        // A mutant that always returns null fails right here
+        assertThat(actualResult).isSameAs(existingPetType);
+        verify(petTypeRepository).findById(1);
+    }
+
 }

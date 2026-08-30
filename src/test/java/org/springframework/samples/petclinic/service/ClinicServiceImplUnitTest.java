@@ -31,6 +31,9 @@ import org.springframework.samples.petclinic.repository.VisitRepository;
 import org.springframework.samples.petclinic.model.Pet;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+// Import for test 7
+import org.springframework.samples.petclinic.model.PetType;
+
 @ExtendWith(MockitoExtension.class)
 class ClinicServiceImplUnitTest {
 
@@ -158,6 +161,19 @@ class ClinicServiceImplUnitTest {
             .isInstanceOf(NullPointerException.class);
 
         verify(petRepository, never()).save(any(Pet.class));
+    }
+
+    @Test
+    void findPetTypeById_whenPetTypeDoesNotExist_shouldReturnNull() {
+
+        // Same "not found" situation, but through a different public method.
+        when(petTypeRepository.findById(999))
+            .thenThrow(new EmptyResultDataAccessException(1));
+
+        PetType actualResult = clinicService.findPetTypeById(999);
+
+        // The shared findEntityById helper swallows the exception here too.
+        assertThat(actualResult).isNull();
     }
 
 }

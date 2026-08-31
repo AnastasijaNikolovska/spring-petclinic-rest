@@ -122,6 +122,27 @@ class ClinicServiceImplUnitTest {
         assertThat(actualResult).isEmpty();
     }
 
+    // I added this test while doing step 7 and writing the ISP part
+    // This is for the Variation 3 of the BCC result table
+    // It covers block "none" of characteristic C6 (owners match the filter)
+    @Test
+    void findOwners_whenLastNameMatchesNoOwners_shouldReturnEmptyPage() {
+
+        Pageable pageable = PageRequest.of(0, 5);
+
+        // No owner has this surname, so the repository returns an empty page.
+        Page<Owner> emptyResult = new PageImpl<>(List.<Owner>of());
+        when(ownerRepository.findByLastName("Zzyzzyx", pageable)).thenReturn(emptyResult);
+
+        Page<Owner> actualResult = clinicService.findOwners("Zzyzzyx", pageable);
+
+        // It still uses the filtered query
+        verify(ownerRepository).findByLastName("Zzyzzyx", pageable);
+
+        // and returns an empty page rather than null or an error.
+        assertThat(actualResult).isEmpty();
+    }
+
     @Test
     void findOwnerById_whenOwnerExists_shouldReturnTheOwner() {
 

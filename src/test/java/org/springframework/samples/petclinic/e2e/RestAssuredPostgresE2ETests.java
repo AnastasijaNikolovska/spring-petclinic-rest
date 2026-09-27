@@ -41,10 +41,6 @@ import static org.hamcrest.Matchers.notNullValue;
 class RestAssuredPostgresE2ETests {
 
 
-    // =========================================================
-    // POSTGRESQL TESTCONTAINER
-    // =========================================================
-
     @Container
     static PostgreSQLContainer<?> postgres =
         new PostgreSQLContainer<>("postgres:16.3")
@@ -52,10 +48,6 @@ class RestAssuredPostgresE2ETests {
             .withUsername("petclinic")
             .withPassword("petclinic");
 
-
-    // =========================================================
-    // CONNECT SPRING TO POSTGRESQL
-    // =========================================================
 
     @DynamicPropertySource
     static void configurePostgres(
@@ -83,18 +75,8 @@ class RestAssuredPostgresE2ETests {
         );
     }
 
-
-    // =========================================================
-    // RANDOM PORT USED BY SPRING BOOT
-    // =========================================================
-
     @LocalServerPort
     int port;
-
-
-    // =========================================================
-    // REST ASSURED CONFIGURATION
-    // =========================================================
 
     @BeforeEach
     void setUp() {
@@ -107,10 +89,6 @@ class RestAssuredPostgresE2ETests {
     }
 
 
-    // =========================================================
-    // AUTHENTICATED REQUEST
-    // =========================================================
-
     private RequestSpecification authenticatedRequest() {
 
         return given()
@@ -121,34 +99,9 @@ class RestAssuredPostgresE2ETests {
     }
 
 
-    // =========================================================
-    // FULL-STACK END-TO-END TEST
-    //
-    // REST ASSURED
-    //      ↓
-    // HTTP
-    //      ↓
-    // SPRING SECURITY
-    //      ↓
-    // CONTROLLER
-    //      ↓
-    // SERVICE
-    //      ↓
-    // REPOSITORY
-    //      ↓
-    // JPA / HIBERNATE
-    //      ↓
-    // POSTGRESQL TESTCONTAINER
-    // =========================================================
-
     @Test
     void shouldCreateUpdateAndDeleteOwnerUsingPostgres() {
 
-
-        // =====================================================
-        // STEP 1
-        // CREATE A NEW OWNER
-        // =====================================================
 
         String newOwner = """
             {
@@ -171,8 +124,6 @@ class RestAssuredPostgresE2ETests {
 
                 .then()
 
-                // If something fails,
-                // print the complete response.
                 .log()
                 .ifValidationFails()
 
@@ -202,13 +153,6 @@ class RestAssuredPostgresE2ETests {
                 .extract()
                 .path("id");
 
-
-        // =====================================================
-        // STEP 2
-        // GET THE OWNER
-        //
-        // This proves that the owner was really persisted.
-        // =====================================================
 
         authenticatedRequest()
 
@@ -256,11 +200,6 @@ class RestAssuredPostgresE2ETests {
             );
 
 
-        // =====================================================
-        // STEP 3
-        // UPDATE THE OWNER
-        // =====================================================
-
         String updatedOwner = """
             {
                 "firstName": "Postgres",
@@ -288,13 +227,6 @@ class RestAssuredPostgresE2ETests {
 
             .statusCode(204);
 
-
-        // =====================================================
-        // STEP 4
-        // GET THE OWNER AGAIN
-        //
-        // Verify that PostgreSQL contains the updated values.
-        // =====================================================
 
         authenticatedRequest()
 
@@ -342,11 +274,6 @@ class RestAssuredPostgresE2ETests {
             );
 
 
-        // =====================================================
-        // STEP 5
-        // DELETE THE OWNER
-        // =====================================================
-
         authenticatedRequest()
 
             .when()
@@ -361,11 +288,6 @@ class RestAssuredPostgresE2ETests {
 
             .statusCode(204);
 
-
-        // =====================================================
-        // STEP 6
-        // VERIFY THAT THE OWNER NO LONGER EXISTS
-        // =====================================================
 
         authenticatedRequest()
 

@@ -29,14 +29,18 @@ class RestAssuredOwnerE2ETests {
     @LocalServerPort
     int port;
 
+
     @BeforeEach
     void setUp() {
+
         RestAssured.port = port;
+
         RestAssured.basePath = "/petclinic";
     }
 
 
     private RequestSpecification authenticatedRequest() {
+
         return given()
             .auth()
             .preemptive()
@@ -60,6 +64,7 @@ class RestAssuredOwnerE2ETests {
     }
 
 
+
     @Test
     void shouldReturn404ForMissingOwner() {
 
@@ -69,6 +74,8 @@ class RestAssuredOwnerE2ETests {
             .then()
             .statusCode(404);
     }
+
+
 
     @Test
     void shouldReturn401WithoutAuthentication() {
@@ -95,18 +102,19 @@ class RestAssuredOwnerE2ETests {
     }
 
 
+
     @Test
     void shouldCreateOwner() {
 
         String newOwner = """
-                {
-                    "firstName": "Test",
-                    "lastName": "Owner",
-                    "address": "Test Street 1",
-                    "city": "Skopje",
-                    "telephone": "1112223333"
-                }
-                """;
+            {
+                "firstName": "Test",
+                "lastName": "Owner",
+                "address": "Test Street 1",
+                "city": "Skopje",
+                "telephone": "1112223333"
+            }
+            """;
 
         authenticatedRequest()
             .contentType(ContentType.JSON)
@@ -123,19 +131,43 @@ class RestAssuredOwnerE2ETests {
     }
 
 
+
+    @Test
+    void shouldReturn400ForInvalidOwner() {
+
+        String invalidOwner = """
+            {
+                "firstName": "",
+                "lastName": "Owner",
+                "address": "Test Street 1",
+                "city": "Skopje",
+                "telephone": "1112223333"
+            }
+            """;
+
+        authenticatedRequest()
+            .contentType(ContentType.JSON)
+            .body(invalidOwner)
+            .when()
+            .post("/api/owners")
+            .then()
+            .statusCode(400);
+    }
+
+
     @Test
     void shouldCreateUpdateAndDeleteOwner() {
 
 
         String newOwner = """
-                {
-                    "firstName": "Rest",
-                    "lastName": "Assured",
-                    "address": "123 Test Street",
-                    "city": "Skopje",
-                    "telephone": "1234567890"
-                }
-                """;
+            {
+                "firstName": "Rest",
+                "lastName": "Assured",
+                "address": "123 Test Street",
+                "city": "Skopje",
+                "telephone": "1234567890"
+            }
+            """;
 
         Integer ownerId =
             authenticatedRequest()
@@ -154,6 +186,7 @@ class RestAssuredOwnerE2ETests {
                 .path("id");
 
 
+
         authenticatedRequest()
             .when()
             .get("/api/owners/{ownerId}", ownerId)
@@ -165,15 +198,16 @@ class RestAssuredOwnerE2ETests {
             .body("lastName", equalTo("Assured"));
 
 
+
         String updatedOwner = """
-                {
-                    "firstName": "Rest",
-                    "lastName": "Updated",
-                    "address": "456 Updated Street",
-                    "city": "Bitola",
-                    "telephone": "0987654321"
-                }
-                """;
+            {
+                "firstName": "Rest",
+                "lastName": "Updated",
+                "address": "456 Updated Street",
+                "city": "Bitola",
+                "telephone": "0987654321"
+            }
+            """;
 
         authenticatedRequest()
             .contentType(ContentType.JSON)
@@ -193,6 +227,8 @@ class RestAssuredOwnerE2ETests {
             .body("firstName", equalTo("Rest"))
             .body("lastName", equalTo("Updated"))
             .body("city", equalTo("Bitola"));
+
+
 
         authenticatedRequest()
             .when()

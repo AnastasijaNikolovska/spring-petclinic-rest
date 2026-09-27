@@ -1,0 +1,384 @@
+package org.springframework.samples.petclinic.e2e;
+
+import io.restassured.RestAssured;
+import io.restassured.http.ContentType;
+import io.restassured.specification.RequestSpecification;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.web.server.LocalServerPort;
+
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.TestPropertySource;
+
+import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
+
+import static io.restassured.RestAssured.given;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.notNullValue;
+
+
+@SpringBootTest(
+    webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT
+)
+@ActiveProfiles("spring-data-jpa")
+@Testcontainers
+@TestPropertySource(properties = {
+    "petclinic.security.enable=true",
+
+    "spring.sql.init.mode=always",
+
+    "spring.sql.init.schema-locations=classpath:db/postgres/schema.sql",
+
+    "spring.sql.init.data-locations=classpath:db/postgres/data.sql"
+})
+class RestAssuredPostgresE2ETests {
+
+
+    // =========================================================
+    // POSTGRESQL TESTCONTAINER
+    // =========================================================
+
+    @Container
+    static PostgreSQLContainer<?> postgres =
+        new PostgreSQLContainer<>("postgres:16.3")
+            .withDatabaseName("petclinic")
+            .withUsername("petclinic")
+            .withPassword("petclinic");
+
+
+    // =========================================================
+    // CONNECT SPRING TO POSTGRESQL
+    // =========================================================
+
+    @DynamicPropertySource
+    static void configurePostgres(
+        DynamicPropertyRegistry registry
+    ) {
+
+        registry.add(
+            "spring.datasource.url",
+            postgres::getJdbcUrl
+        );
+
+        registry.add(
+            "spring.datasource.username",
+            postgres::getUsername
+        );
+
+        registry.add(
+            "spring.datasource.password",
+            postgres::getPassword
+        );
+
+        registry.add(
+            "spring.datasource.driver-class-name",
+            postgres::getDriverClassName
+        );
+    }
+
+
+    // =========================================================
+    // RANDOM PORT USED BY SPRING BOOT
+    // =========================================================
+
+    @LocalServerPort
+    int port;
+
+
+    // =========================================================
+    // REST ASSURED CONFIGURATION
+    // =========================================================
+
+    @BeforeEach
+    void setUp() {
+
+        RestAssured.baseURI = "http://localhost";
+
+        RestAssured.port = port;
+
+        RestAssured.basePath = "/petclinic";
+    }
+
+
+    // =========================================================
+    // AUTHENTICATED REQUEST
+    // =========================================================
+
+    private RequestSpecification authenticatedRequest() {
+
+        return given()
+            .auth()
+            .preemptive()
+            .basic("admin", "admin")
+            .accept(ContentType.JSON);
+    }
+
+
+    // =========================================================
+    // FULL-STACK END-TO-END TEST
+    //
+    // REST ASSURED
+    //      ↓
+    // HTTP
+    //      ↓
+    // SPRING SECURITY
+    //      ↓
+    // CONTROLLER
+    //      ↓
+    // SERVICE
+    //      ↓
+    // REPOSITORY
+    //      ↓
+    // JPA / HIBERNATE
+    //      ↓
+    // POSTGRESQL TESTCONTAINER
+    // =========================================================
+
+    @Test
+    void shouldCreateUpdateAndDeleteOwnerUsingPostgres() {
+
+
+        // =====================================================
+        // STEP 1
+        // CREATE A NEW OWNER
+        // =====================================================
+
+        String newOwner = """
+            {
+                "firstName": "Postgres",
+                "lastName": "Owner",
+                "address": "123 Integration Street",
+                "city": "Skopje",
+                "telephone": "1234567890"
+            }
+            """;
+
+
+        Integer ownerId =
+            authenticatedRequest()
+                .contentType(ContentType.JSON)
+                .body(newOwner)
+
+                .when()
+                .post("/api/owners")
+
+                .then()
+
+                // If something fails,
+                // print the complete response.
+                .log()
+                .ifValidationFails()
+
+                .statusCode(201)
+                .contentType(ContentType.JSON)
+
+                .body(
+                    "id",
+                    notNullValue()
+                )
+
+                .body(
+                    "firstName",
+                    equalTo("Postgres")
+                )
+
+                .body(
+                    "lastName",
+                    equalTo("Owner")
+                )
+
+                .body(
+                    "city",
+                    equalTo("Skopje")
+                )
+
+                .extract()
+                .path("id");
+
+
+        // =====================================================
+        // STEP 2
+        // GET THE OWNER
+        //
+        // This proves that the owner was really persisted.
+        // =====================================================
+
+        authenticatedRequest()
+
+            .when()
+            .get(
+                "/api/owners/{ownerId}",
+                ownerId
+            )
+
+            .then()
+            .log()
+            .ifValidationFails()
+
+            .statusCode(200)
+            .contentType(ContentType.JSON)
+
+            .body(
+                "id",
+                equalTo(ownerId)
+            )
+
+            .body(
+                "firstName",
+                equalTo("Postgres")
+            )
+
+            .body(
+                "lastName",
+                equalTo("Owner")
+            )
+
+            .body(
+                "address",
+                equalTo("123 Integration Street")
+            )
+
+            .body(
+                "city",
+                equalTo("Skopje")
+            )
+
+            .body(
+                "telephone",
+                equalTo("1234567890")
+            );
+
+
+        // =====================================================
+        // STEP 3
+        // UPDATE THE OWNER
+        // =====================================================
+
+        String updatedOwner = """
+            {
+                "firstName": "Postgres",
+                "lastName": "Updated",
+                "address": "456 Integration Avenue",
+                "city": "Bitola",
+                "telephone": "0987654321"
+            }
+            """;
+
+
+        authenticatedRequest()
+            .contentType(ContentType.JSON)
+            .body(updatedOwner)
+
+            .when()
+            .put(
+                "/api/owners/{ownerId}",
+                ownerId
+            )
+
+            .then()
+            .log()
+            .ifValidationFails()
+
+            .statusCode(204);
+
+
+        // =====================================================
+        // STEP 4
+        // GET THE OWNER AGAIN
+        //
+        // Verify that PostgreSQL contains the updated values.
+        // =====================================================
+
+        authenticatedRequest()
+
+            .when()
+            .get(
+                "/api/owners/{ownerId}",
+                ownerId
+            )
+
+            .then()
+            .log()
+            .ifValidationFails()
+
+            .statusCode(200)
+            .contentType(ContentType.JSON)
+
+            .body(
+                "id",
+                equalTo(ownerId)
+            )
+
+            .body(
+                "firstName",
+                equalTo("Postgres")
+            )
+
+            .body(
+                "lastName",
+                equalTo("Updated")
+            )
+
+            .body(
+                "address",
+                equalTo("456 Integration Avenue")
+            )
+
+            .body(
+                "city",
+                equalTo("Bitola")
+            )
+
+            .body(
+                "telephone",
+                equalTo("0987654321")
+            );
+
+
+        // =====================================================
+        // STEP 5
+        // DELETE THE OWNER
+        // =====================================================
+
+        authenticatedRequest()
+
+            .when()
+            .delete(
+                "/api/owners/{ownerId}",
+                ownerId
+            )
+
+            .then()
+            .log()
+            .ifValidationFails()
+
+            .statusCode(204);
+
+
+        // =====================================================
+        // STEP 6
+        // VERIFY THAT THE OWNER NO LONGER EXISTS
+        // =====================================================
+
+        authenticatedRequest()
+
+            .when()
+            .get(
+                "/api/owners/{ownerId}",
+                ownerId
+            )
+
+            .then()
+            .log()
+            .ifValidationFails()
+
+            .statusCode(404);
+    }
+}
